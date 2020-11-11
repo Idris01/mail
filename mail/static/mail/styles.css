@@ -1,0 +1,8 @@
+textarea {
+    min-height: 400px;
+}
+.notification{
+  display: block;
+  max-height:40px;
+  width: 100%;
+}
