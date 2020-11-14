@@ -14,15 +14,22 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-const mailEngine= async (mailbox,send_mail,get_mail_id) =>{
+const mailEngine= async (mailbox,send_mail,get_mail_id,status_change) =>{
+  var email='';
 	if(mailbox){
-		var email = await fetch(`/emails/${mailbox}`);
+		email = await fetch(`/emails/${mailbox}`);
 		return email.json();
 	}
 	else if(send_mail){
-		var response = await fetch(send_mail['url'],send_mail['data']);
-		return response.json();
+		email = await fetch(send_mail['url'],send_mail['data']);
+		return email.json();
 	}
+  else if(get_mail_id){
+    // view of a specific mails
+    email=await fetch(`/emails/${get_mail_id}`)
+    return email.json();
+  }
+
 }
 
 
@@ -37,7 +44,7 @@ function send_mail(){
     		body: document.querySelector('#compose-body').value
 		})
   }
-	mailEngine(undefined,mail_info,undefined)
+	mailEngine(undefined,mail_info,undefined,undefined)
 		.then(response =>{
       if(response.message){
         document.getElementById("success_msg").innerText=response.message;
@@ -84,38 +91,99 @@ function compose_email() {
 }
 
 function load_mailbox(mailbox) {
-	mailEngine(mailbox,undefined,undefined)
+	mailEngine(mailbox,undefined,undefined,undefined)
 		.then(mails => {
-		if(mailbox==="inbox"){
+      // create a container for the whole in a load_mailbox
+      var mail_container=document.createElement('div');
+      mail_container.setAttribute("class","mail_container")
 
-			//create a container for the message
-			var container=document.createElement('div');
-			container.setAttribute("class","container");
-			var sender =document.createElement('p');
-			sender.setAttribute("class","sender");
-			var subject =document.createElement('p');
-			subject.setAttribute("class","subject");
-			var timestamp =document.createElement('p');
-			timestamp.setAttribute("class","timestamp");
+      // create an element to use for empty mail
+      var empty_mail = document.createElement('div');
+      empty_mail.setAttribute("class", "empty_mail");
+
+
 
 			if (mails.length!==0){
-        console.log(mails);
-				for(mail in mails){
-					sender.innerText=mail.sender;
-					subject.innerText=mail.subject;
-					timestamp.innerText=mail.timestamp;
+				mails.forEach( mail =>{
 
-					container.appendChild(sender,subject,timestamp);
+          //create a container for each  message content display
+          var msg_container=document.createElement('div');
+          msg_container.setAttribute("class","msg_container");
+          // create an element to hold the sender
+          var sender =document.createElement('p');
+          sender.setAttribute("class","sender");
 
-					document.querySelector('#emails-view').appendChild(container);
+          // create an element to hold the subject
+          var subject =document.createElement('p');
+          subject.setAttribute("class","subject");
 
-				}
+          // create en element to told the recepients
+          var recipient= document.createElement('p');
+          recipient.setAttribute("class", "recipient");
+
+          // create an element to hold the timestamp
+          var timestamp =document.createElement('p');
+          timestamp.setAttribute("class","timestamp");
+
+            if(mail.read){
+              msg_container.style.background="white";
+            }
+            else {
+                msg_container.style.background="gray";
+            }
+  					sender.appendChild(document.createTextNode(mail.sender));
+  					subject.appendChild(document.createTextNode(mail.subject));
+  					timestamp.appendChild(document.createTextNode(mail.timestamp));
+
+            if(mailbox==="inbox"){
+                msg_container.appendChild(sender);
+            }
+          else{
+            console.log(mail.recipients);
+            let r="";
+            if(mail.recipients.length > 1 ){
+              r=mail.recipients[0] + "...";
+            }
+            else{
+              r=mail.recipients;
+            }
+            recipient.appendChild(document.createTextNode(r));
+            msg_container.appendChild(recipient);
+          }
+
+          msg_container.appendChild(subject);
+          msg_container.appendChild(timestamp);
+
+          // add event listener to view the mails
+          msg_container.addEventListener('click',()=>{
+            mail_container.innerHTML=""; // removes initial content of the element
+            mail_container.style.background="gray";
+            mail_container.appendChild(document.createTextNode(`Subject: ${mail.subject}`))
+            mail_container.appendChild(document.createElement('br'));
+            mail_container.appendChild(document.createTextNode(`To: ${mail.recipients}`));
+            mail_container.appendChild(document.createElement('br'));
+            mail_container.appendChild(document.createTextNode(`From: ${mail.sender}`));
+            mail_container.appendChild(document.createElement('br'));
+
+            // create a text area to display the content of the mail
+            let msg=document.createElement("div");
+            msg.setAttribute('class',"msg");
+
+            msg.style.disabled="true";
+            msg.innerText=mail.body;
+          //mail_container.appendChild(msg);
+          });
+          // first append the msg_container to the mail_container
+          mail_container.appendChild(msg_container);
+					document.querySelector('#emails-view').appendChild(mail_container);
+
+				});
 			}
 			else{
-			container.innerHTML="<h4>Inbox is empty </h4>";
-			document.querySelector('#emails-view').appendChild(container);
+  			empty_mail.innerHTML=`<h5>${mailbox.charAt(0).toUpperCase()+ mailbox.slice(1)} is empty </h5>`;
+  			document.querySelector('#emails-view').appendChild(empty_mail);
 			}
-		}
+
   })
   .catch(error => {
     document.getElementById("fail_msg").innerText=error;
